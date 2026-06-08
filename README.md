@@ -1,2 +1,3 @@
 # minibrain
-Kiwix mirrorbrain toolset
+
+Minimalist Mirrorbain maintenance tools for Kiwix Load-balancer
