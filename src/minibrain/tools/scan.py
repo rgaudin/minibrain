@@ -1,53 +1,146 @@
 # pyright: strict, reportUnknownMemberType=false, reportUnknownVariableType=false, reportUnknownArgumentType=false
+import datetime
+import urllib.parse
+from collections.abc import Generator
 from pathlib import Path
+from typing import NamedTuple
 
+import humanfriendly
 from peewee import DoesNotExist
 
 from minibrain.context import Context
-from minibrain.db import Server, Version, database
-from minibrain.utils.alerts import AlertDestination, send_probe_status_change_alert
+from minibrain.db import Server, database
+from minibrain.utils.alerts import AlertDestination
 from minibrain.utils.db import get_mb_version
-from minibrain.utils.probe import probe_mirror
+from minibrain.utils.http import get_nginx_listing
+from minibrain.utils.rsync import get_rsync_listing
 
 context = Context.get()
 logger = context.logger
 
 
-def get_listing():
-    ...
-    # my ($priv, $name, $len, $mode, $mtime, @info) = @_;
-    # path, identifier, serverid, mod_re, ign_re
+def get_listing(
+    url: str, top_includes: list[str], excludes: list[str], rsync_excludes: list[str]
+) -> list[str]:
+    scheme = urllib.parse.urlsplit(url).scheme
+    try:
+        listing_func, timeout = {
+            "rsync": (get_rsync_listing, context.rsync_scan_timeout),
+            "http": (get_nginx_listing, context.http_scan_timeout),
+            "https": (get_nginx_listing, context.http_scan_timeout),
+        }[scheme]
+    except KeyError as exc:
+        logger.critical(f"Unsupported URL scheme {scheme}: {exc!s}")
+        raise OSError(f"Unsupported URL scheme {scheme}") from exc
+    if scheme == "rsync":
+        excludes = rsync_excludes + excludes
+    return listing_func(
+        url=url, top_includes=top_includes, excludes=excludes, timeout=timeout
+    )
 
-    # my $sql_insert_file = "INSERT INTO file (path) VALUES (?);";
 
-    # my $sql = "SELECT mirr_add_bypath(?, ?);";
+def mirr_add_bypath(serverid: int, path: str) -> int:
+    """file ID of matching file after added/updating/skipping mirror in mirrors col"""
+    cursor = database.execute_sql("SELECT mirr_add_bypath(%s, %s);", (serverid, path))
 
-    # rsync --no-motd -rlpt --delete --ignore-errors -n --out-format="%o %B %i %M %l %n%L"
-    # %o: operation
-    # %B: permission bits
-    # %i: itemized list of what is being updated
-    # %M: last-modified time of the file
-    # %l: length of the file in bytes
-    # %n: filename (short form; trailing lq/rq on dir)
-    # %L: the string lq -> SYMLINKrq, lq => HARDLINKrq, or lqrq (where SYMLINK or HARDLINK is a filename)
-    #
-    #
-    # %f the filename (long form on sender; no trailing lq/rq)
+    # TODO:
+    # use custom new function that does not create a file entry for each file
+    # on each mirror (ie: trust only our own files from hashes)
+    return next(cursor)[0]
 
-    command = [
-        "rsync",
-        "--no-motd",
-        "--recursive",
-        "--links",
-        "--perms",
-        "--times",
-        "--delete",
-        "--ignore-errors",
-        "--dry-run",
-        "--out-format=%l %M %n",
-        "rsync://192.168.1.61:1873/zim",
-        "./dest/",
-    ]
+
+def mirr_del_byid(serverid: int, file_id: int) -> bool:
+    """whether serverid was removed from this file's mirrors column"""
+    cursor = database.execute_sql("SELECT mirr_del_byid(%d, %d);", (serverid, file_id))
+    return next(cursor) == 1
+
+
+def get_fileid(path: str) -> int:
+    cursor = database.execute_sql("SELECT id FROM filearr WHERE path = %s", (path,))
+    try:
+        return next(cursor)[0]
+    # there is no file in DB for this path
+    except StopIteration:
+        return 0
+
+
+def get_existing_files(mirror_ident: str) -> Generator[int]:
+    cursor = database.execute_sql(
+        (
+            "SELECT id FROM filearr WHERE "
+            "(SELECT id from server where identifier = %s) = ANY(mirrors)"
+        ),
+        (mirror_ident,),
+    )
+    for row in cursor:
+        yield row[0]
+
+
+class ScanResult(NamedTuple):
+    nb_scanned: int
+    nb_purged: int
+    files_per_mn: int
+
+
+def run_mirror_scan(
+    *,
+    mirror_id: int,
+    mirror_ident: str,
+    url: str,
+    dry_run: bool,
+    top_includes: list[str],
+    excludes: list[str],
+    rsync_excludes: list[str],
+) -> ScanResult:
+
+    files_in_db = list(get_existing_files(mirror_ident=mirror_ident))
+    files_in_db.sort()  # will make removing faster
+
+    scan_started_on = datetime.datetime.now(tz=datetime.UTC)
+    scanned_files = get_listing(
+        url=url,
+        top_includes=top_includes,
+        excludes=excludes,
+        rsync_excludes=rsync_excludes,
+    )
+    nb_scanned = len(scanned_files)
+    scan_ended_on = datetime.datetime.now(tz=datetime.UTC)
+    scan_duration = scan_ended_on - scan_started_on
+    files_per_mn = int(nb_scanned / scan_duration.total_seconds() * 60)
+    nb_purged = 0
+
+    scanned_files.sort()
+    logger.info(f"FOUND {nb_scanned} files on {mirror_ident}")
+
+    with database.atomic():
+        for path in scanned_files:
+            if dry_run:
+                file_id = get_fileid(path)
+            else:
+                # add mirror ID to file's mirrors column (failsafe function)
+                file_id = mirr_add_bypath(mirror_id, path)
+
+            # remove from list of files on mirror (we've seen it)
+            if file_id:  # in case it's a non-mirrored file
+                files_in_db.remove(file_id)
+
+        # now files_in_db is composed exclusively of files that we once
+        # recorded as present in mirror but are not present anymore
+        nb_purged = len(files_in_db)
+        if dry_run:
+            logger.info(f"WOULD PURGE {nb_purged} files previously on {mirror_ident}")
+            return ScanResult(
+                nb_scanned=nb_scanned, nb_purged=nb_purged, files_per_mn=files_per_mn
+            )
+
+        logger.info(f"PURGING {nb_purged} files previously on {mirror_ident}")
+
+        for file_id in files_in_db:
+            mirr_del_byid(serverid=mirror_id, file_id=file_id)
+
+        return ScanResult(
+            nb_scanned=nb_scanned, nb_purged=nb_purged, files_per_mn=files_per_mn
+        )
 
 
 def mirrorscan(
@@ -82,16 +175,30 @@ def mirrorscan(
         )
         return 2
 
-    if not mirror.statusBaseUrl:
+    if not mirror.status_baseurl:
         logger.critical(f"Server `{mirror_id}` is offline ; not scanning")
         return 2
 
-    # scan_top_include
-    # scan_exclude
-    # scan_exclude_rsync
+    scan = run_mirror_scan(
+        mirror_id=mirror.id,
+        mirror_ident=mirror.identifier,
+        url=mirror.baseurl_rsync or mirror.baseurl_ftp or mirror.baseurl,
+        dry_run=dry_run,
+        top_includes=context.mb_scan_top_include,
+        excludes=context.mb_scan_exclude,
+        rsync_excludes=context.mb_scan_exclude_rsync,
+    )
 
-    # $sql = "UPDATE server SET last_scan = NOW(), scan_fpm = $fpm WHERE id = $row->{id};";
-    # if($enable_after_scan && $file_count > 1 && !$row->{enabled}) {
-    # $sql = "UPDATE server SET enabled = '1' WHERE id = $row->{id};";
+    if dry_run:
+        return 0
+
+    if not mirror.enabled and scan.nb_scanned > 0 and enable:
+        logger.info("ENABLING mirror {mirror.identifier} after successful scan")
+        mirror.enable = True
+
+    logger.info("Recording last_scan={form}")
+    mirror.last_scan = datetime.datetime.now(tz=datetime.UTC)
+    mirror.scan_fpm = scan.files_per_mn
+    mirror.save()
 
     return 0
