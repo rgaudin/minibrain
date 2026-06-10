@@ -4,6 +4,7 @@
 # dependencies = [
 #   "psycopg[binary]==3.3.4",
 #   "peewee==4.0.6",
+#   "tqdm==4.68.2",
 # ]
 # ///
 
@@ -16,6 +17,7 @@ from typing import Any
 
 from peewee import PostgresqlDatabase
 from psycopg import Cursor
+from tqdm import tqdm
 
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger("copydb")
@@ -235,10 +237,11 @@ def run(context: Context) -> int:
         "ORDER BY id ASC;",
         (source_mirror_id,),
     )
-    with target_db.atomic():
+    with target_db.atomic(), tqdm(total=nb_files_on_source) as pbar:
         if context.truncate:
             target_db.execute_sql("TRUNCATE table hash RESTART IDENTITY CASCADE;")
             target_db.execute_sql("TRUNCATE table filearr RESTART IDENTITY CASCADE;")
+
         for filearr_row in filearr_res:
             insert_cursor: Cursor = target_db.execute_sql(
                 "INSERT INTO filearr (path, mirrors) VALUES (%s, %s) RETURNING id;",
@@ -263,8 +266,7 @@ def run(context: Context) -> int:
                     "VALUES (%s, %s, %s, %b, %b, %b, %b, %b, %b, '', 0, '', '');",
                     (new_file_id, *thishash_row),
                 )
-                break
-            break
+            pbar.update(1)
 
     return 0
 
