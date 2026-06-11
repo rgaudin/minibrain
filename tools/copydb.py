@@ -12,7 +12,6 @@ import argparse
 import logging
 import urllib.parse
 from dataclasses import dataclass
-from os import truncate
 from typing import Any
 
 from peewee import PostgresqlDatabase
@@ -118,7 +117,7 @@ def entrypoint() -> int:
         context.target_db.close()
 
 
-def get_single(db: PostgresqlDatabase, query: str, *args) -> Any:
+def get_single(db: PostgresqlDatabase, query: str, *args: str) -> Any:
     return next(db.execute_sql(query, args))[0]  # pyright: ignore
 
 
@@ -147,10 +146,6 @@ def run(context: Context) -> int:
     if nb_files_on_target > nb_files_on_source:
         logger.critical("More files on target than source. Looks like a mistake.")
         return 2
-
-    # source_mirror_id: int = get_single(
-    #     source_db, "SELECT id FROM server WHERE identifier = %s;", mirror_ident
-    # )
 
     logger.info("COPY version")
     version_res: Cursor = source_db.execute_sql(

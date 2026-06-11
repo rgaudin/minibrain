@@ -46,8 +46,11 @@ class Context:
     slack_url: str = os.getenv("SLACK_URL", "")
     slack_timeout: int = int(os.getenv("SLACK_TIMEOUT", "10"))
     incidents_folder: Path = DEFAULT_INCIDENTS_FOLDER
+
+    # timeouts in seconds
     http_scan_timeout: int = int(os.getenv("HTTP_SCAN_TIMEOUT", "20"))
     rsync_scan_timeout: int = int(os.getenv("RSYNC_SCAN_TIMEOUT", "20"))
+
     debug: bool = False
 
     mb_name: str = ""

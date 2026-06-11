@@ -1,7 +1,7 @@
 import stat
-import uuid
 import subprocess
 import tempfile
+import uuid
 from pathlib import Path
 
 from minibrain.context import Context
@@ -34,6 +34,8 @@ def get_rsync_listing(
         "--ignore-errors",
         "--dry-run",
         "--out-format=%B %l %M %n",
+        "--contimeout",
+        str(timeout),
     ]
 
     if top_includes:

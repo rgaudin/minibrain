@@ -1,7 +1,6 @@
 import datetime
 import os
 from collections.abc import Sequence
-from http import HTTPStatus
 from pathlib import Path
 
 import humanfriendly  # pyright: ignore[reportMissingTypeStubs]
