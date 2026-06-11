@@ -20,7 +20,7 @@ COPY src /src/src
 COPY *.md /src/
 COPY entrypoint.sh /usr/local/bin/entrypoint
 # TEMP DEV
-COPY mirrorbrain.conf /etc/mirrorbrain.conf
+COPY server/conf/mirrorbrain.conf /etc/mirrorbrain.conf
 COPY motd /etc/motd
 
 # Install + cleanup
