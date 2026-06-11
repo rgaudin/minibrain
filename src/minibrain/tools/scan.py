@@ -10,7 +10,6 @@ from peewee import DoesNotExist
 
 from minibrain.context import Context
 from minibrain.db import Server, database
-from minibrain.utils.alerts import AlertDestination
 from minibrain.utils.db import get_mb_version
 from minibrain.utils.http import get_nginx_listing
 from minibrain.utils.rsync import get_rsync_listing
@@ -168,7 +167,6 @@ def mirrorscan(
     trusted_mirror: bool,
     enable: bool,
     # directory: Path,
-    alerts: list[AlertDestination],
 ) -> int:
 
     context = Context.get()
@@ -176,10 +174,6 @@ def mirrorscan(
         enable = False
 
     logger.info(f"Starting mirrorscan for {context.dsn}")
-
-    if not all(dest.is_valid for dest in alerts):
-        logger.warning("You have invalid --alerts")
-
     logger.info(f"Connected to mirrorbrain DB version {get_mb_version()}")
 
     try:

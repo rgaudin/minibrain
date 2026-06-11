@@ -5,11 +5,7 @@ from pathlib import Path
 from types import FrameType
 
 from minibrain.__about__ import __version__
-from minibrain.context import (
-    DEFAULT_CONFIG_PATH,
-    AlertDestination,
-    Context,
-)
+from minibrain.context import DEFAULT_CONFIG_PATH, Context
 
 logger = Context.logger
 
@@ -34,16 +30,6 @@ def prepare_context(raw_args: list[str]) -> argparse.Namespace:
         help="Config file to use",
         dest="instance_name",
         default="",
-    )
-
-    parser.add_argument(
-        "--alert",
-        help=(
-            "Comma-separated list of alert `proto:address` destination. "
-            "Only `slack` and `email` proto supported"
-        ),
-        action="append",
-        dest="alerts",
     )
 
     parser.add_argument(
@@ -124,7 +110,6 @@ def main() -> int:
         signal.signal(signal.SIGINT, exit_gracefully)
         signal.signal(signal.SIGQUIT, exit_gracefully)
 
-        alerts: list[str] = args.alerts or []
         try:
             database.connect()
             return mirrorscan(
@@ -134,7 +119,6 @@ def main() -> int:
                 trusted_mirror=args.trusted_mirror,
                 enable=args.enable,
                 # directory=args.directory,
-                alerts=[AlertDestination.parse(alert) for alert in alerts],
             )
         finally:
             database.close()
