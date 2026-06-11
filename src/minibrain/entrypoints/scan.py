@@ -54,19 +54,33 @@ def prepare_context(raw_args: list[str]) -> argparse.Namespace:
     )
 
     parser.add_argument(
+        "--only-scan",
+        help="Just the remote server scan (alowed even if mirror is disabled)",
+        action="store_true",
+        dest="only_scan",
+    )
+
+    parser.add_argument(
+        "--allow-insert",
+        help="Trust this mirror's scanned files listing and insert File entry for each",
+        action="store_true",
+        dest="trusted_mirror",
+    )
+
+    parser.add_argument(
         "--enable",
         help="Enable mirror upon success",
         action="store_true",
         dest="enable",
     )
 
-    parser.add_argument(
-        "-d",
-        "--directory",
-        help="Only scan this path under baseUrl",
-        type=Path,
-        dest="directory",
-    )
+    # parser.add_argument(
+    #     "-d",
+    #     "--directory",
+    #     help="Only scan this path under baseUrl",
+    #     type=Path,
+    #     dest="directory",
+    # )
 
     parser.add_argument(
         "--debug",
@@ -116,8 +130,10 @@ def main() -> int:
             return mirrorscan(
                 mirror_id=args.mirror,
                 dry_run=args.dry_run,
+                only_scan=args.only_scan,
+                trusted_mirror=args.trusted_mirror,
                 enable=args.enable,
-                directory=args.directory,
+                # directory=args.directory,
                 alerts=[AlertDestination.parse(alert) for alert in alerts],
             )
         finally:

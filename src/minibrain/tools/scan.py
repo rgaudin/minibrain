@@ -40,14 +40,23 @@ def get_listing(
 
 
 @database.atomic("SERIALIZABLE")
-def mirr_add_bypath(serverid: int, path: str) -> int:
+def mirr_add_bypath(serverid: int, path: str, *, allow_insert: bool) -> int:
     """file ID of matching file after added/updating/skipping mirror in mirrors col"""
-    cursor = database.execute_sql("SELECT mirr_add_bypath(%s, %s);", (serverid, path))
 
-    # TODO:
-    # use custom new function that does not create a file entry for each file
-    # on each mirror (ie: trust only our own files from hashes)
+    # WARN: this is now using our own mirr_add_bypath_noins instead
+    # of the stock mirr_add_bypath
+    # difference is that this does not insert a new file entry for every file found
+    # on mirrors because we dont want to pollute our DB with extra files on 3d party srv
+    query = "SELECT mirr_add_bypath_noins(%s, %s);"
+
+    # stock-mirrorbrain behavior available via allow_insert param
+    if allow_insert:
+        query = "SELECT mirr_add_bypath(%s, %s);"
+
+    cursor = database.execute_sql(query, (serverid, path))
+
     return next(cursor)[0]
+
 
 @database.atomic("SERIALIZABLE")
 def mirr_del_byid(serverid: int, file_id: int) -> bool:
@@ -88,7 +97,9 @@ def run_mirror_scan(
     mirror_id: int,
     mirror_ident: str,
     url: str,
+    trusted_mirror: bool,
     dry_run: bool,
+    only_scan: bool,
     top_includes: list[str],
     excludes: list[str],
     rsync_excludes: list[str],
@@ -113,12 +124,15 @@ def run_mirror_scan(
     scanned_files.sort()
     logger.info(f"FOUND {nb_scanned} files on {mirror_ident}")
 
+    if only_scan:
+        return ScanResult(nb_scanned=nb_scanned, nb_purged=0, files_per_mn=files_per_mn)
+
     for path in scanned_files:
         if dry_run:
             file_id = get_fileid(path)
         else:
             # add mirror ID to file's mirrors column (failsafe function)
-            file_id = mirr_add_bypath(mirror_id, path)
+            file_id = mirr_add_bypath(mirror_id, path, allow_insert=trusted_mirror)
 
         # remove from list of files on mirror (we've seen it)
         if file_id:  # in case it's a non-mirrored file
@@ -150,8 +164,10 @@ def mirrorscan(
     mirror_id: str,
     *,
     dry_run: bool,
+    only_scan: bool,
+    trusted_mirror: bool,
     enable: bool,
-    directory: Path,
+    # directory: Path,
     alerts: list[AlertDestination],
 ) -> int:
 
@@ -172,13 +188,13 @@ def mirrorscan(
         logger.critical(f"Server `{mirror_id}` was not found in DB")
         return 1
 
-    if not mirror.enabled and not enable:
+    if not mirror.enabled and not enable and not only_scan:
         logger.critical(
             f"Server `{mirror_id}` is not enabled. Use --enable or --dry-run to scan."
         )
         return 2
 
-    if not mirror.status_baseurl:
+    if not mirror.status_baseurl and not only_scan:
         logger.critical(f"Server `{mirror_id}` is offline ; not scanning")
         return 2
 
@@ -194,12 +210,14 @@ def mirrorscan(
         mirror_ident=mirror.identifier,
         url=mirror.baseurl_rsync or mirror.baseurl_ftp or mirror.baseurl,
         dry_run=dry_run,
+        only_scan=only_scan,
+        trusted_mirror=trusted_mirror,
         top_includes=context.mb_scan_top_include,
         excludes=context.mb_scan_exclude,
         rsync_excludes=context.mb_scan_exclude_rsync,
     )
 
-    if dry_run:
+    if dry_run or only_scan:
         return 0
 
     if not mirror.enabled and scan.nb_scanned > 0 and enable:
