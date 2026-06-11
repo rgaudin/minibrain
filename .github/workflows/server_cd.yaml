@@ -1,0 +1,28 @@
+name: server
+
+on:
+  push:
+    branches:
+      - 'main'
+    paths:
+      - 'server/**'
+  workflow_dispatch:
+
+jobs:
+
+  rsyncd:
+    name: Deploy server Image
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+      - name: Publish minibrain-server Image
+        uses: openzim/docker-publish-action@v10
+        with:
+          image-name: kiwix/minibrain-server
+          on-master: latest
+          restrict-to: kiwix/minibrain
+          context: server
+          registries: ghcr.io
+          credentials:
+            GHCRIO_USERNAME=${{ secrets.GHCR_USERNAME }}
+            GHCRIO_TOKEN=${{ secrets.GHCR_TOKEN }}
