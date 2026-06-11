@@ -47,6 +47,7 @@ dev = [
 [project.scripts]
 probe = "minibrain.entrypoints.probe:entrypoint"
 scan = "minibrain.entrypoints.scan:entrypoint"
+copydb = "minibrain.entrypoints.copydb:entrypoint"
 
 [tool.hatch.version]
 path = "src/minibrain/__about__.py"
