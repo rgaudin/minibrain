@@ -3,6 +3,7 @@ LABEL org.opencontainers.image.source=https://github.com/kiwix/minibrain
 
 RUN \
     apk add --no-cache dumb-init python3 \
+    rsync \
     # python dependencies
     && python3 -m venv /usr/local/mbenv \
     && /usr/local/mbenv/bin/pip3 install --no-cache-dir -U pip
@@ -20,6 +21,7 @@ COPY *.md /src/
 COPY entrypoint.sh /usr/local/bin/entrypoint
 # TEMP DEV
 COPY mirrorbrain.conf /etc/mirrorbrain.conf
+COPY motd /etc/motd
 
 # Install + cleanup
 RUN \
@@ -29,4 +31,4 @@ RUN \
 ENV MIRRORBRAIN_CONFIG_FILE=/etc/mirrorbrain.conf
 
 ENTRYPOINT ["/usr/bin/dumb-init", "--", "/usr/local/bin/entrypoint"]
-CMD ["status"]
+CMD ["/bin/sh"]

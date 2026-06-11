@@ -1,0 +1,13 @@
+           _       _ _               _       
+          (_)     (_) |             (_)      
+ _ __ ___  _ _ __  _| |__  _ __ __ _ _ _ __  
+| '_ ` _ \| | '_ \| | '_ \| '__/ _` | | '_ \ 
+| | | | | | | | | | | |_) | | | (_| | | | | |
+|_| |_| |_|_|_| |_|_|_.__/|_|  \__,_|_|_| |_|
+                                             
+MB conf at /etc/mirrobrain.conf
+Available tools:
+$ status            quick overview of mirror statuses
+$ probe             check if a mirror is online or not
+$ scan              scan a mirror's filetree to update DB with list of files on mirror
+  
