@@ -45,18 +45,24 @@ def get_rsync_listing(
     # last arg is an empty dir (the fake rsync target)
     command += [url, str(Path(tempfile.gettempdir()).joinpath(uuid.uuid4().hex))]
 
-    rsync = subprocess.run(command, text=True, capture_output=True, check=True)
+    rsync = subprocess.run(command, text=True, capture_output=True, check=False)
+    if rsync.returncode not in (0, 23):  # 23 is partial transfer
+        rsync.check_returncode()
 
     for line in rsync.stdout.splitlines():
-        perms, size_s, mtime_s, path = line.rsplit(" ", 3)
+        # skip lines containing error
+        if rsync.returncode and line.startswith("rsync: [sender]"):
+            continue
 
-        if "->" in path:  # symlink
-            path, symlink = path.split(" -> ", 1)
-        elif "=>" in path:  # hardlink
-            path, _ = path.split(" => ", 1)
+        if "->" in line:  # symlink
+            line, symlink = line.split(" -> ", 1)  # noqa: PLW2901
+        elif "=>" in line:  # hardlink
+            line, _ = line.split(" => ", 1)  # noqa: PLW2901
             symlink = ""
         else:
             symlink = ""
+        perms, size_s, mtime_s, path = line.rsplit(" ", 3)
+
         perms = perms.strip()
         # file perms only
         if len(perms) <= 9:  # noqa: PLR2004
