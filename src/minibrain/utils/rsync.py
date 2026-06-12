@@ -19,10 +19,6 @@ def get_rsync_listing(
 
     files: list[str] = []
 
-    # TODO: remove debug
-    if url.startswith("rsync://rsyncd-service/"):
-        url = "rsync://master.download.kiwix.org/master.download.kiwix.org"
-
     command = [
         "rsync",
         "--no-motd",
