@@ -1,0 +1,28 @@
+name: geoipupdate
+
+on:
+  push:
+    branches:
+      - 'main'
+    paths:
+      - 'geoipupdate/**'
+  workflow_dispatch:
+
+jobs:
+
+  rsyncd:
+    name: Deploy geoipupdate Image
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@v6
+      - name: Publish geoipupdate Image
+        uses: openzim/docker-publish-action@v10
+        with:
+          image-name: kiwix/geoipupdate
+          on-master: latest
+          restrict-to: kiwix/minibrain
+          context: geoipupdate
+          registries: ghcr.io
+          credentials:
+            GHCRIO_USERNAME=${{ secrets.GHCR_USERNAME }}
+            GHCRIO_TOKEN=${{ secrets.GHCR_TOKEN }}

@@ -6,7 +6,6 @@ ARG TARGETPLATFORM
 
 ENV LIBMAXMINDDB_VERSION=1.13.3
 ENV MOD_MAXMINDDB_VERSION=1.3.0
-ENV GEOIPUPDATE_VERSION=7.1.1
 
 RUN \
   groupadd -r mirrorbrain \
@@ -18,6 +17,7 @@ RUN \
     curl automake libtool unzip build-essential libz-dev \
     libaprutil1-dev libaprutil1-dbd-pgsql \
     postgresql-client \
+  && rm -rf /var/lib/apt/lists/* \
   && true
 
 # GeoIP
@@ -33,22 +33,6 @@ RUN \
   && make check \
   && make install \
   && ldconfig
-
-RUN \
-  echo "TARGETPLATFORM: $TARGETPLATFORM" \
-    && if [ "$TARGETPLATFORM" = "linux/arm64/v8" \
-        -o "$TARGETPLATFORM" = "linux/arm64" ]; then GEOIPUPDATE_ARCH="arm64"; \
-       elif [ "$TARGETPLATFORM" = "linux/amd64/v3" \
-        -o "$TARGETPLATFORM" = "linux/amd64/v2" \
-        -o "$TARGETPLATFORM" = "linux/amd64" ]; then GEOIPUPDATE_ARCH="amd64"; \
-       # we dont suppot any other arch so let it fail
-       else GEOIPUPDATE_ARCH="unknown"; fi \
-  && cd /tmp \
-  && curl -v -L -o geoipupdate_${GEOIPUPDATE_VERSION}_linux_${GEOIPUPDATE_ARCH}.tar.gz https://github.com/maxmind/geoipupdate/releases/download/v${GEOIPUPDATE_VERSION}/geoipupdate_${GEOIPUPDATE_VERSION}_linux_${GEOIPUPDATE_ARCH}.tar.gz \
-  && tar -xf geoipupdate_${GEOIPUPDATE_VERSION}_linux_${GEOIPUPDATE_ARCH}.tar.gz \
-  && mv geoipupdate_${GEOIPUPDATE_VERSION}_linux_${GEOIPUPDATE_ARCH}/geoipupdate /usr/bin/geoipupdate \
-  && rm /tmp/geoipupdate_${GEOIPUPDATE_VERSION}_linux_${GEOIPUPDATE_ARCH}.tar.gz \
-  && rm -rf ./geoipupdate_${GEOIPUPDATE_VERSION}_linux_${GEOIPUPDATE_ARCH}/
 
 COPY conf/httpd.conf /usr/local/apache2/httpd.conf
 COPY conf/vhost.conf /usr/local/apache2/extra/httpd-vhosts.conf
