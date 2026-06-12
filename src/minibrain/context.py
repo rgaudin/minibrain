@@ -123,6 +123,8 @@ class Context:
         )
 
         for section in (instance_name, "mirrorprobe"):
+            if section not in config.sections():
+                continue
             prefix = "mirrorprobe" if section == "mirrorprobe" else "mb"
             for key in config[section]:
                 try:

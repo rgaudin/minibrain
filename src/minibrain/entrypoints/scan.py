@@ -123,7 +123,7 @@ def main() -> int:
         finally:
             database.close()
     except Exception as exc:
-        logger.error(f"General failure: {exc!s}")
+        logger.error(f"General failure: {exc!r}")
         if debug:
             logger.exception(exc)
         return 1
