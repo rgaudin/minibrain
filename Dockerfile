@@ -1,6 +1,11 @@
 FROM python:3.14-alpine
 LABEL org.opencontainers.image.source=https://github.com/kiwix/minibrain
 
+# default location for config
+ENV MIRRORBRAIN_CONFIG_FILE=/etc/mirrorbrain.conf
+# run /etc/profile on shells (displays out motd)
+ENV ENV="/etc/profile"
+
 RUN \
     apk add --no-cache dumb-init python3 \
     rsync \
@@ -18,20 +23,17 @@ RUN /usr/local/mbenv/bin/pip install --no-cache-dir /src
 # Copy code + associated artifacts
 COPY src /src/src
 COPY *.md /src/
-COPY entrypoint.sh /usr/local/bin/entrypoint
-# TEMP DEV
 COPY server/conf/mirrorbrain.conf /etc/mirrorbrain.conf
 COPY motd /etc/motd
 
 # Install + cleanup
 RUN \
-     /usr/local/mbenv/bin/pip install --no-cache-dir /src \
-     && rm -rf /src \
-     && echo "/bin/cat /etc/motd" >> /etc/profile
+    /usr/local/mbenv/bin/pip install --no-cache-dir /src \
+    && rm -rf /src \
+    && printf "\
+export PATH=\"/usr/local/mbenv/bin:${PATH}\"\n\
+/bin/cat /etc/motd\n\
+" >> /etc/profile
 
-ENV MIRRORBRAIN_CONFIG_FILE=/etc/mirrorbrain.conf
-# run /etc/profile on shells (displays out motd)
-ENV ENV="/etc/profile"
-
-ENTRYPOINT ["/usr/bin/dumb-init", "--", "/usr/local/bin/entrypoint"]
+ENTRYPOINT ["/usr/bin/dumb-init", "--"]
 CMD ["/bin/sh"]
