@@ -148,8 +148,8 @@ def run(context: Context) -> int:
         target_db, "SELECT mirr_get_nfiles(%s);", mirror_ident
     )
 
-    logger.info(f"SOURCE recorded files for {mirror_ident}: {nb_files_on_source}")
-    logger.info(f"TARGET recorded files for {mirror_ident}: {nb_files_on_target}")
+    logger.info(f"SOURCE recorded files for {mirror_ident}: {nb_files_on_source:,}")
+    logger.info(f"TARGET recorded files for {mirror_ident}: {nb_files_on_target:,}")
 
     if nb_files_on_target > nb_files_on_source:
         logger.critical("More files on target than source. Looks like a mistake.")

@@ -120,11 +120,12 @@ def run_mirror_scan(
     nb_purged = 0
 
     scanned_files.sort()
-    logger.info(f"FOUND {nb_scanned} files on {mirror_ident}")
+    logger.info(f"FOUND {nb_scanned:,} files on {mirror_ident}")
 
     if only_scan:
         return ScanResult(nb_scanned=nb_scanned, nb_purged=0, files_per_mn=files_per_mn)
 
+    logger.info(f"Recording presence on mirror for {nb_scanned:,} files…")
     for path in scanned_files:
         if dry_run:
             file_id = get_fileid(path)
@@ -143,12 +144,12 @@ def run_mirror_scan(
     # recorded as present in mirror but are not present anymore
     nb_purged = len(files_in_db)
     if dry_run:
-        logger.info(f"WOULD PURGE {nb_purged} files previously on {mirror_ident}")
+        logger.info(f"WOULD PURGE {nb_purged:,} files previously on {mirror_ident}")
         return ScanResult(
             nb_scanned=nb_scanned, nb_purged=nb_purged, files_per_mn=files_per_mn
         )
 
-    logger.info(f"PURGING {nb_purged} files previously on {mirror_ident}")
+    logger.info(f"PURGING {nb_purged:,} files previously on {mirror_ident}")
 
     for file_id in files_in_db:
         mirr_del_byid(serverid=mirror_id, file_id=file_id)
@@ -221,7 +222,7 @@ def mirrorscan(
     mirror.scan_fpm = scan.files_per_mn
     logger.info(
         f"Recording last_scan: {format_dt(mirror.last_scan)}, "
-        f"{mirror.scan_fpm} files per mn."
+        f"{mirror.scan_fpm:,} files per mn."
     )
     mirror.save()
 
