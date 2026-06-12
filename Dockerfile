@@ -26,9 +26,12 @@ COPY motd /etc/motd
 # Install + cleanup
 RUN \
      /usr/local/mbenv/bin/pip install --no-cache-dir /src \
-     && rm -rf /src
+     && rm -rf /src \
+     && echo "/bin/cat /etc/motd" >> /etc/profile
 
 ENV MIRRORBRAIN_CONFIG_FILE=/etc/mirrorbrain.conf
+# run /etc/profile on shells (displays out motd)
+ENV ENV="/etc/profile"
 
 ENTRYPOINT ["/usr/bin/dumb-init", "--", "/usr/local/bin/entrypoint"]
 CMD ["/bin/sh"]
