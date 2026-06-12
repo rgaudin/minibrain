@@ -1,8 +1,6 @@
 # pyright: strict, reportUnknownMemberType=false, reportUnknownVariableType=false, reportUnknownArgumentType=false
-from typing import Any
-
 from humanfriendly import format_size
-from peewee import DoesNotExist, PostgresqlDatabase
+from peewee import PostgresqlDatabase
 from rich.console import Console
 from rich.status import Status
 from rich.table import Table

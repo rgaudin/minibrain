@@ -8,7 +8,7 @@ def format_size(size: int) -> str:
 
 
 def format_dt(dt: datetime.datetime) -> str:
-    return dt.strftime("%Y-%m-%d @ %H:%M:%S")
+    return dt.strftime("%Y-%m-%d @ %H:%M:%S")  # noqa: RUF001
 
 
 def format_ts(ts: int) -> str:

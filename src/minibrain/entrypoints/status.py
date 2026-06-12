@@ -69,7 +69,7 @@ def prepare_context(raw_args: list[str]) -> argparse.Namespace:
 def main() -> int:
     debug = Context.debug
     try:
-        args = prepare_context(sys.argv[1:])
+        prepare_context(sys.argv[1:])
         context = Context.get()
         debug = context.debug
 
