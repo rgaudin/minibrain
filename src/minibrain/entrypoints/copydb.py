@@ -11,8 +11,8 @@ on a specific mirror (your master) yet keeping associated hashes
 # /// script
 # dependencies = [
 #   "psycopg[binary]==3.3.4",
+#   "rich==15.0.0",
 #   "peewee==4.0.6",
-#   "tqdm==4.68.2",
 # ]
 # ///
 
@@ -24,7 +24,7 @@ from typing import Any
 
 from peewee import PostgresqlDatabase
 from psycopg import Cursor
-from tqdm import tqdm
+from rich.progress import track
 
 logging.basicConfig(level=logging.DEBUG)
 logger = logging.getLogger("copydb")
@@ -240,7 +240,8 @@ def run(context: Context) -> int:
         "ORDER BY id ASC;",
         (source_mirror_id,),
     )
-    with target_db.atomic(), tqdm(total=nb_files_on_source) as pbar:
+    progress = track(range(nb_files_on_source), "Copying rows…")
+    with target_db.atomic():
         if context.truncate:
             target_db.execute_sql("TRUNCATE table hash RESTART IDENTITY CASCADE;")
             target_db.execute_sql("TRUNCATE table filearr RESTART IDENTITY CASCADE;")
@@ -269,7 +270,7 @@ def run(context: Context) -> int:
                     "VALUES (%s, %s, %s, %b, %b, %b, %b, %b, %b, '', 0, '', '');",
                     (new_file_id, *thishash_row),
                 )
-            pbar.update(1)
+            next(progress)
 
     return 0
 

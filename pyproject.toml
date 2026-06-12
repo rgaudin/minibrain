@@ -9,7 +9,7 @@ description = "Simple tools to maintain Kiwix load-balancer"
 readme = "README.md"
 dependencies = [
     "psycopg[binary]==3.3.4",
-    "peewee==4.0.6",
+    "peewee==4.0.7",
     "requests==2.34.2",
     "werkzeug==3.1.8",
     "humanfriendly==10.0",
@@ -29,7 +29,6 @@ lint = [
 ]
 check = [
   "pyright==1.1.410",
-  "tqdm==4.68.2",  # for tools
   "minibrain[test]",
 ]
 test = [
