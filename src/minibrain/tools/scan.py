@@ -10,6 +10,7 @@ from minibrain.context import Context
 from minibrain.db import Server, database
 from minibrain.utils.db import get_mb_version
 from minibrain.utils.http import get_nginx_listing
+from minibrain.utils.misc import format_dt
 from minibrain.utils.rsync import get_rsync_listing
 
 context = Context.get()
@@ -216,9 +217,12 @@ def mirrorscan(
         logger.info("ENABLING mirror {mirror.identifier} after successful scan")
         mirror.enable = True
 
-    logger.info("Recording last_scan={form}")
     mirror.last_scan = datetime.datetime.now(tz=datetime.UTC)
     mirror.scan_fpm = scan.files_per_mn
+    logger.info(
+        f"Recording last_scan: {format_dt(mirror.last_scan)}, "
+        f"{mirror.scan_fpm} files per mn."
+    )
     mirror.save()
 
     return 0
